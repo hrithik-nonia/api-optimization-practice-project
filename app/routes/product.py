@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Query
 from app.database import products_collection
-from app.models import ProductsResponse
+from app.models import ProductsResponse, CreateProduct, ProductResponse, ProductAddInDb, Product
+from datetime import datetime, timezone
+import random
 
 router = APIRouter()
 
@@ -44,4 +46,37 @@ async def get_products(
         page=page,
         limit=limit,
         products=products
+    )
+    
+    
+@router.post("/create-product", response_model=ProductResponse)
+async def create_product(data: CreateProduct):
+    rating = random.randint(1, 5)
+    product = ProductAddInDb(
+        name= data.name,
+        category= data.category,
+        price= data.price,
+        stock= data.stock,
+        brand= data.brand,
+        description= data.description,
+        created_at= datetime.now(timezone.utc),
+        rating= rating
+    )
+    response = await products_collection.insert_one(
+            product.model_dump()
+        )
+    
+    return ProductResponse(
+        message= "Product Added",
+        product = Product(
+            id= str(response.inserted_id),
+            name= data.name,
+            category= data.category,
+            price= data.price,
+            stock= data.stock,
+            rating= rating,
+            brand= data.brand,
+            description= data.description,
+            created_at= datetime.now(timezone.utc)
+        )
     )
