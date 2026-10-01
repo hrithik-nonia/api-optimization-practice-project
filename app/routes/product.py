@@ -3,6 +3,9 @@ from app.database import products_collection
 from app.models import ProductsResponse, CreateProduct, ProductResponse, ProductAddInDb, Product
 from datetime import datetime, timezone
 import random
+from app.redis_client import redis_client
+from app.utils.key_generator import create_products_cache_key
+import json
 
 router = APIRouter()
 
@@ -16,37 +19,71 @@ async def get_products(
     sort_by: str = Query("created_at"),
     order: int = Query(-1)  
 ):
-    # Build filter query
-    query = {}
-    if category:
-        query["category"] = category
-    if min_price is not None or max_price is not None:
-        query["price"] = {}
-        if min_price is not None:
-            query["price"]["$gte"] = min_price
-        if max_price is not None:
-            query["price"]["$lte"] = max_price
-
-    skip = (page - 1) * limit
-
-    # DB se data fetch karo
-    cursor = products_collection.find(query)
-    cursor = cursor.sort(sort_by, order).skip(skip).limit(limit)
-
-    products = []
-    async for doc in cursor:
-        doc["id"] = str(doc["_id"])
-        del doc["_id"]
-        products.append(doc)
-
-    total = await products_collection.count_documents(query)
-
-    return ProductsResponse(
-        total=total,
-        page=page,
-        limit=limit,
-        products=products
+    
+    # generate key for redis
+    catch_key = create_products_cache_key(
+        page,
+        limit,
+        category,
+        min_price,
+        max_price,
+        sort_by,
+        order
     )
+    
+    # check key exist
+    exists = await redis_client.exists(catch_key)
+    
+    if exists == 0:
+        # Build filter query
+        query = {}
+        if category:
+            query["category"] = category
+        if min_price is not None or max_price is not None:
+            query["price"] = {}
+            if min_price is not None:
+                query["price"]["$gte"] = min_price
+            if max_price is not None:
+                query["price"]["$lte"] = max_price
+
+        skip = (page - 1) * limit
+
+        # DB se data fetch karo
+        cursor = products_collection.find(query)
+        cursor = cursor.sort(sort_by, order).skip(skip).limit(limit)
+
+        products = []
+        async for doc in cursor:
+            doc["id"] = str(doc["_id"])
+            del doc["_id"]
+            products.append(doc)
+
+        total = await products_collection.count_documents(query)
+        
+        return_product = ProductsResponse(
+            total=total,
+            page=page,
+            limit=limit,
+            products=products
+        )
+        
+        # pydantic model ko dict me convert kiya
+        json_data = return_product.model_dump_json()
+        
+        # Redis me store
+        await redis_client.set(
+            catch_key,
+            json_data,
+            ex=300
+        )
+
+        return return_product
+    
+    if exists:
+        cached_data = await redis_client.get(catch_key)
+        return ProductsResponse.model_validate_json(cached_data)
+    
+    
     
     
 @router.post("/create-product", response_model=ProductResponse)
@@ -80,3 +117,6 @@ async def create_product(data: CreateProduct):
             created_at= datetime.now(timezone.utc)
         )
     )
+    
+    
+    
