@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 import random
 from app.redis_client import redis_client
 from app.utils.key_generator import create_products_cache_key
-import json
 
 router = APIRouter()
 
