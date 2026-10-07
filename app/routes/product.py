@@ -1,22 +1,27 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from app.database import products_collection
 from app.models import ProductsResponse, CreateProduct, ProductResponse, ProductAddInDb, Product
 from datetime import datetime, timezone
 import random
 from app.redis_client import redis_client
 from app.utils.key_generator import create_products_cache_key
+from app.utils.rate_limit import limiter
+
+
 
 router = APIRouter()
 
 @router.get("/products", response_model=ProductsResponse)
+@limiter.limit("10000/minute")
 async def get_products(
+    request: Request,
     page: int = Query(1, ge=1),
     limit: int = Query(100, ge=1, le=100),
     category: str = Query(None),
     min_price: float = Query(None),
     max_price: float = Query(None),
     sort_by: str = Query("created_at"),
-    order: int = Query(-1)  
+    order: int = Query(-1)
 ):
     
     # generate key for redis
@@ -33,7 +38,7 @@ async def get_products(
     # check key exist
     exists = await redis_client.exists(catch_key)
     
-    if exists == 0:
+    if not exists:
         # Build filter query
         query = {}
         if category:
@@ -48,7 +53,10 @@ async def get_products(
         skip = (page - 1) * limit
 
         # DB se data fetch karo
-        cursor = products_collection.find(query)
+        cursor = products_collection.find(query, {"name":1,
+                                                  "price":1, 
+                                                  "stock":1,
+                                                  "rating":1})
         cursor = cursor.sort(sort_by, order).skip(skip).limit(limit)
 
         products = []
