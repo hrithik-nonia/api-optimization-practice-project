@@ -5,13 +5,9 @@ from datetime import datetime
 class Product(BaseModel):
     id: str
     name: str
-    category: str
     price: float
     stock: int
     rating: float
-    brand: str
-    description: str
-    created_at: datetime
 
 class ProductsResponse(BaseModel):
     total: int
