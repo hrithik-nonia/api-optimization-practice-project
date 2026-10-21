@@ -2,12 +2,16 @@ import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime
 import random
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 categories = ["Electronics", "Clothing", "Books", "Sports", "Home", "Beauty"]
 brands = ["Samsung", "Nike", "Apple", "Sony", "Adidas", "LG", "Puma"]
 
 async def seed():
-    client = AsyncIOMotorClient("mongodb://localhost:27017")
+    client = AsyncIOMotorClient(os.getenv("MONGODB_URI"))
     db = client["product_db"]
     col = db["products"]
 

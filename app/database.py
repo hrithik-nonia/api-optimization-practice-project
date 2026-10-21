@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-client = AsyncIOMotorClient(os.getenv("MONGODB_URL"),
+client = AsyncIOMotorClient(os.getenv("MONGODB_URI"),
                             minPoolSize=10,  # connection polling connection ko live rakhta hai close nahi karta hai
                             maxPoolSize=300)
 db = client[os.getenv("DB_NAME")]

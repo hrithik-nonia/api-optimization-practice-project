@@ -12,7 +12,6 @@ from app.utils.rate_limit import limiter
 router = APIRouter()
 
 @router.get("/products", response_model=ProductsResponse)
-@limiter.limit("10000/minute")
 async def get_products(
     request: Request,
     page: int = Query(1, ge=1),
