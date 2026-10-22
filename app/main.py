@@ -1,3 +1,5 @@
+import uvloop
+uvloop.install()
 from fastapi import FastAPI
 from app.routes.product import router as product_route
 from contextlib import asynccontextmanager
