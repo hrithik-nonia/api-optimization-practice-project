@@ -1,5 +1,20 @@
-.python-version
-uv.lock.env
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python
 __pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
 .venv/
-*.pyc
+venv/
+
+# Local database and logs
+*.log
+
+# IDE
+.vscode/
+.idea/
